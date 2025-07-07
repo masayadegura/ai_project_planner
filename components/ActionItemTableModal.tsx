@@ -11,13 +11,15 @@ interface ActionItemTableModalProps {
   items: FlattenedItem[];
   taskName: string;
   onClose: () => void;
+  onUpdateActionItem: (subStepId: string, actionItemId: string, updates: Partial<ActionItem>) => void;
 }
 
 type SortKeys = 'status' | 'text' | 'subStep' | 'dueDate' | 'responsible' | 'completedDate';
 type SortDirection = 'ascending' | 'descending';
 
-const ActionItemTableModal: React.FC<ActionItemTableModalProps> = ({ items, taskName, onClose }) => {
+const ActionItemTableModal: React.FC<ActionItemTableModalProps> = ({ items, taskName, onClose, onUpdateActionItem }) => {
   const [sortConfig, setSortConfig] = useState<{ key: SortKeys; direction: SortDirection } | null>(null);
+  const [editingField, setEditingField] = useState<{ itemId: string; field: string } | null>(null);
 
   const onlyOneSubStep = useMemo(() => new Set(items.map(i => i.subStep.id)).size <= 1, [items]);
 
@@ -76,6 +78,65 @@ const ActionItemTableModal: React.FC<ActionItemTableModalProps> = ({ items, task
       return <SortDescIcon className="w-3 h-3 ml-1 opacity-30 group-hover:opacity-100" />;
     }
     return sortConfig.direction === 'ascending' ? <SortAscIcon className="w-3 h-3 ml-1 text-blue-600" /> : <SortDescIcon className="w-3 h-3 ml-1 text-blue-600" />;
+  };
+
+  const handleFieldUpdate = (subStepId: string, actionItemId: string, field: string, value: string) => {
+    onUpdateActionItem(subStepId, actionItemId, { [field]: value });
+    setEditingField(null);
+  };
+
+  const EditableField: React.FC<{
+    value: string;
+    itemId: string;
+    field: string;
+    subStepId: string;
+    actionItemId: string;
+    placeholder?: string;
+    type?: 'text' | 'date';
+  }> = ({ value, itemId, field, subStepId, actionItemId, placeholder, type = 'text' }) => {
+    const isEditing = editingField?.itemId === itemId && editingField?.field === field;
+    const [tempValue, setTempValue] = useState(value);
+
+    const handleSave = () => {
+      handleFieldUpdate(subStepId, actionItemId, field, tempValue);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        handleSave();
+      } else if (e.key === 'Escape') {
+        setTempValue(value);
+        setEditingField(null);
+      }
+    };
+
+    if (isEditing) {
+      return (
+        <input
+          type={type}
+          value={tempValue}
+          onChange={(e) => setTempValue(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          className="w-full px-1 py-0.5 text-xs border border-blue-500 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+          placeholder={placeholder}
+          autoFocus
+        />
+      );
+    }
+
+    return (
+      <div
+        onClick={() => {
+          setEditingField({ itemId, field });
+          setTempValue(value);
+        }}
+        className="cursor-pointer hover:bg-slate-100 px-1 py-0.5 rounded min-h-[1.5rem] flex items-center"
+        title="クリックして編集"
+      >
+        {value || <span className="text-slate-400 italic">{placeholder}</span>}
+      </div>
+    );
   };
 
   const SortableHeader: React.FC<{ sortKey: SortKeys; label: string; className?: string }> = ({ sortKey, label, className }) => (
@@ -150,9 +211,38 @@ const ActionItemTableModal: React.FC<ActionItemTableModalProps> = ({ items, task
                     {actionItem.report?.notes && <p className="text-xs text-slate-500 mt-1 pt-1 border-t border-slate-200 whitespace-pre-wrap">{actionItem.report.notes}</p>}
                   </td>
                   {!onlyOneSubStep && <td className="p-2 border border-slate-300 align-top">{subStep.text}</td>}
-                  <td className="p-2 border border-slate-300 align-top">{actionItem.responsible || ''}</td>
-                  <td className="p-2 border border-slate-300 align-top">{actionItem.dueDate || ''}</td>
-                  <td className="p-2 border border-slate-300 align-top">{actionItem.completedDate || ''}</td>
+                  <td className="p-2 border border-slate-300 align-top">
+                    <EditableField
+                      value={actionItem.responsible || ''}
+                      itemId={actionItem.id}
+                      field="responsible"
+                      subStepId={subStep.id}
+                      actionItemId={actionItem.id}
+                      placeholder="担当者を入力"
+                    />
+                  </td>
+                  <td className="p-2 border border-slate-300 align-top">
+                    <EditableField
+                      value={actionItem.dueDate || ''}
+                      itemId={actionItem.id}
+                      field="dueDate"
+                      subStepId={subStep.id}
+                      actionItemId={actionItem.id}
+                      placeholder="期日を選択"
+                      type="date"
+                    />
+                  </td>
+                  <td className="p-2 border border-slate-300 align-top">
+                    <EditableField
+                      value={actionItem.completedDate || ''}
+                      itemId={actionItem.id}
+                      field="completedDate"
+                      subStepId={subStep.id}
+                      actionItemId={actionItem.id}
+                      placeholder="完了日を選択"
+                      type="date"
+                    />
+                  </td>
                 </tr>
               ))}
               {items.length === 0 && (

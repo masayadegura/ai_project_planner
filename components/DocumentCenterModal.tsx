@@ -219,6 +219,21 @@ const DocumentCenterModal: React.FC<DocumentCenterModalProps> = ({
         return undefined;
     };
     
+    const downloadFile = (source: CustomSource & { dataUrl?: string }, fileName: string) => {
+        const link = getLinkForSource(source);
+        if (link) {
+            const a = document.createElement('a');
+            a.href = link;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            if (source.type === 'json') {
+                URL.revokeObjectURL(link);
+            }
+        }
+    };
+    
     const selectedDocDetails = useMemo(() => {
         return allDocuments.filter(doc => selectedDocs.has(doc.id));
     }, [selectedDocs, allDocuments]);
@@ -244,7 +259,16 @@ const DocumentCenterModal: React.FC<DocumentCenterModalProps> = ({
                                 <tr key={doc.id} className="bg-white hover:bg-slate-50 transition-colors">
                                     <td className="border border-slate-300 align-middle text-center p-2"><input type="checkbox" checked={selectedDocs.has(doc.id)} onChange={() => handleToggleSelection(doc.id)} className="w-4 h-4 accent-blue-600" /></td>
                                     <td className="border border-slate-300 p-2 font-medium text-slate-800">
-                                        {link ? <a href={link} target="_blank" rel="noopener noreferrer" className="hover:underline">{doc.name}</a> : <span>{doc.name}</span>}
+                                        {link ? (
+                                            <button 
+                                                onClick={() => downloadFile(doc.source, doc.name)}
+                                                className="hover:underline text-blue-600 text-left"
+                                            >
+                                                {doc.name}
+                                            </button>
+                                        ) : (
+                                            <span>{doc.name}</span>
+                                        )}
                                     </td>
                                     <td className="border border-slate-300 p-2 text-slate-600"><div className="flex items-center gap-2">{getIconForType(doc.type)}<span>{doc.type}</span></div></td>
                                     <td className="border border-slate-300 p-2 text-slate-600 truncate">{doc.taskName}</td>

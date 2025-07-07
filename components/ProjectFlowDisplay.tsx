@@ -1,17 +1,20 @@
 import React, { useRef, useEffect, useState, createRef, useCallback } from 'react';
 import { ProjectTask, EditableExtendedTaskDetails, ProjectHealthReport, SlideDeck, TaskStatus, GanttItem } from '../types';
 import TaskCard from './TaskCard';
-import { TargetIcon, CalendarIcon, DownloadIcon, PlusCircleIcon, UploadIcon, RefreshIcon, UndoIcon, RedoIcon, ClipboardDocumentListIcon, SparklesIcon, PresentationChartBarIcon, PlusIcon as NewProjectIcon, GanttChartIcon, FolderIcon, KeyIcon } from './icons';
+import { TargetIcon, CalendarIcon, DownloadIcon, PlusCircleIcon, UploadIcon, RefreshIcon, UndoIcon, RedoIcon, ClipboardDocumentListIcon, SparklesIcon, PresentationChartBarIcon, PlusIcon as NewProjectIcon, GanttChartIcon, FolderIcon, KeyIcon, UserIcon } from './icons';
 import FlowConnector from './FlowConnector';
 import ActionItemOverviewModal from './ActionItemOverviewModal';
 import ProjectHealthReportModal from './ProjectHealthReportModal';
 import { generateProjectHealthReport, generateProjectReportDeck, generateGanttData } from '../services/geminiService';
 import { ProjectService } from '../services/projectService';
+import { ProjectCollaborationService } from '../services/projectCollaborationService';
 import LoadingSpinner from './LoadingSpinner';
 import SlideEditorView from './SlideEditorView';
 import ConfirmNewProjectModal from './ConfirmNewProjectModal';
 import GanttChartView from './GanttChartView';
 import DocumentCenterModal from './DocumentCenterModal';
+import ProjectMembersModal from './ProjectMembersModal';
+import InvitationNotificationModal from './InvitationNotificationModal';
 
 interface ProjectFlowDisplayProps {
   tasks: ProjectTask[];
@@ -84,11 +87,53 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
 
   const [isConfirmNewProjectOpen, setIsConfirmNewProjectOpen] = useState(false);
   const [isDocumentCenterOpen, setIsDocumentCenterOpen] = useState(false);
+  const [isProjectMembersOpen, setIsProjectMembersOpen] = useState(false);
+  const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [hasInvitations, setHasInvitations] = useState(false);
 
   const [connectingState, setConnectingState] = useState<{ fromId: string; fromPos: { x: number; y: number } } | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // ユーザーの役割とプロジェクト権限を確認
+  useEffect(() => {
+    if (currentProjectId) {
+      ProjectCollaborationService.getUserProjectRole(currentProjectId).then(setUserRole);
+    }
+  }, [currentProjectId]);
+
+  // 招待通知をチェック
+  useEffect(() => {
+    const checkInvitations = async () => {
+      try {
+        const invitations = await ProjectCollaborationService.getUserInvitations();
+        setHasInvitations(invitations.length > 0);
+      } catch (error) {
+        console.error('招待確認エラー:', error);
+      }
+    };
+    checkInvitations();
+  }, []);
+
+  // リアルタイム更新の購読
+  useEffect(() => {
+    if (!currentProjectId) return;
+
+    const subscription = ProjectCollaborationService.subscribeToProjectUpdates(
+      currentProjectId,
+      (payload) => {
+        // プロジェクトデータが更新された場合の処理
+        console.log('Project updated:', payload);
+        // 必要に応じてプロジェクトデータを再読み込み
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [currentProjectId]);
 
   useEffect(() => {
     const newRefs = new Map<string, React.RefObject<HTMLDivElement>>();
@@ -283,6 +328,8 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
       setIsSaving(true);
       try {
         const project = await ProjectService.createProject(title, projectGoal, targetDate, tasks, ganttData);
+        // アクティビティログを記録
+        await ProjectCollaborationService.logActivity(project.id, 'project_created', { title });
         alert('プロジェクトが保存されました！');
         // currentProjectIdを更新する必要があるが、propsで渡されているので親コンポーネントで管理
       } catch (error) {
@@ -295,6 +342,8 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
       setIsSaving(true);
       try {
         await onSaveProject();
+        // アクティビティログを記録
+        await ProjectCollaborationService.logActivity(currentProjectId, 'project_updated', {});
         alert('プロジェクトが保存されました！');
       } catch (error) {
         alert('プロジェクトの保存に失敗しました: ' + (error instanceof Error ? error.message : '不明なエラー'));
@@ -394,6 +443,15 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
             新規プロジェクト
           </button>
           <div className="flex flex-wrap gap-2">
+            {hasInvitations && (
+              <button
+                onClick={() => setIsInvitationModalOpen(true)}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 animate-pulse"
+                title="新しい招待があります"
+              >
+                <UserIcon className="w-5 h-5" />
+              </button>
+            )}
             <button
               onClick={onOpenProjectList}
               className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-slate-800 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400"
@@ -401,6 +459,15 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
             >
               <FolderIcon className="w-5 h-5" />
             </button>
+            {currentProjectId && (
+              <button
+                onClick={() => setIsProjectMembersOpen(true)}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-slate-800 bg-white hover:bg-slate-50"
+                title="プロジェクトメンバー"
+              >
+                <UserIcon className="w-5 h-5" />
+              </button>
+            )}
             <button
               onClick={handleSaveProject}
               disabled={isSaving}
@@ -560,6 +627,25 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
         generateUniqueId={generateUniqueId}
       />
     }
+    {isProjectMembersOpen && currentProjectId && (
+      <ProjectMembersModal
+        isOpen={isProjectMembersOpen}
+        onClose={() => setIsProjectMembersOpen(false)}
+        projectId={currentProjectId}
+        userRole={userRole}
+      />
+    )}
+    {isInvitationModalOpen && (
+      <InvitationNotificationModal
+        isOpen={isInvitationModalOpen}
+        onClose={() => setIsInvitationModalOpen(false)}
+        onInvitationAccepted={() => {
+          setHasInvitations(false);
+          // プロジェクト一覧を更新
+          window.location.reload();
+        }}
+      />
+    )}
     {isActionItemOverviewOpen && <ActionItemOverviewModal tasks={tasks} onClose={() => setIsActionItemOverviewOpen(false)} />}
     {isHealthReportOpen && <ProjectHealthReportModal report={healthReport} onClose={() => setIsHealthReportOpen(false)} />}
     {isConfirmNewProjectOpen && (
