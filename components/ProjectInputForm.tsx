@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import LoadingSpinner from './LoadingSpinner';
-import { TargetIcon, CalendarIcon, UploadIcon, FolderIcon, KeyIcon } from './icons';
+import { TargetIcon, CalendarIcon, UploadIcon, FolderIcon, KeyIcon, CrownIcon } from './icons';
 
 interface ProjectInputFormProps {
   onSubmit: (goal: string, date: string) => void;
