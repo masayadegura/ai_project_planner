@@ -14,7 +14,6 @@ import {
 } from './types';
 import { generateProjectPlan, initializeGemini } from './services/geminiService';
 import { ProjectService, ProjectData } from './services/projectService';
-import { ProjectCollaborationService } from './services/projectCollaborationService';
 import { supabase } from './lib/supabase';
 import ProjectInputForm from './components/ProjectInputForm';
 import ProjectFlowDisplay from './components/ProjectFlowDisplay';
@@ -26,7 +25,6 @@ import SlideEditorView from './components/SlideEditorView';
 import ApiKeyModal from './components/ApiKeyModal';
 import AuthModal from './components/AuthModal';
 import ProjectListModal from './components/ProjectListModal';
-import AdminDashboard from './components/AdminDashboard';
 
 const defaultExtendedDetails: ExtendedTaskDetails = {
   subSteps: [],
@@ -121,8 +119,6 @@ const App: React.FC = () => {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isProjectListOpen, setIsProjectListOpen] = useState<boolean>(false);
-  const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState<boolean>(false);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   const [history, setHistory] = useState<ProjectTask[][]>([]);
   const [redoHistory, setRedoHistory] = useState<ProjectTask[][]>([]);
@@ -133,12 +129,6 @@ const App: React.FC = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        // 管理者チェック
-        ProjectCollaborationService.isAdmin().then(setIsAdmin);
-      } else {
-        setIsAdmin(false);
-      }
       if (!session?.user) {
         // ログアウト時の処理
         setCurrentProjectId(null);
@@ -153,9 +143,6 @@ const App: React.FC = () => {
     // 初期認証状態の確認
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        ProjectCollaborationService.isAdmin().then(setIsAdmin);
-      }
     });
 
     return () => subscription.unsubscribe();
@@ -551,6 +538,10 @@ const App: React.FC = () => {
             onExportProject={handleExportProject}
             onAddTask={() => setIsAddTaskModalOpen(true)}
             onRemoveTask={handleRemoveTask}
+        )
+    }
+  }
+}
             onUpdateTaskStatus={handleUpdateTaskStatus}
             onImportSingleTask={() => {}} // Placeholder for now
             onAutoLayout={() => setTasksWithHistory(prev => autoLayoutTasks([...prev]))}
@@ -595,8 +586,6 @@ const App: React.FC = () => {
             onOpenProjectList={() => setIsProjectListOpen(true)}
             onLogout={handleLogout}
             user={user}
-            isAdmin={isAdmin}
-            onOpenAdminDashboard={() => setIsAdminDashboardOpen(true)}
           />
         );
     }
@@ -617,12 +606,6 @@ const App: React.FC = () => {
           onClose={() => setIsProjectListOpen(false)}
           onSelectProject={handleSelectProject}
           onCreateNew={handleCreateNewProject}
-        />
-      )}
-      {isAdminDashboardOpen && (
-        <AdminDashboard
-          isOpen={isAdminDashboardOpen}
-          onClose={() => setIsAdminDashboardOpen(false)}
         />
       )}
       {customReportDeck && (
