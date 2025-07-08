@@ -1,12 +1,17 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Project Planner</title>
+
+  <!-- TailwindCSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts (Inter) should go first inside <style> -->
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
     /* Custom scrollbar for better aesthetics */
     ::-webkit-scrollbar {
       width: 8px;
@@ -23,42 +28,45 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #555;
     }
-    /* Ensure body takes full height */
+
+    /* Ensure body takes full height and uses Inter font */
     html, body, #root {
-        height: 100%;
-        margin: 0;
-        font-family: 'Inter', sans-serif; /* A nice default sans-serif font */
+      height: 100%;
+      margin: 0;
+      font-family: 'Inter', sans-serif;
     }
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     /* For ProjectFlowDisplay layout lines */
     .flow-display-container > svg {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none; /* Make sure SVG doesn't block interactions with cards */
-        z-index: 0; /* Behind cards */
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
     }
     .task-card-in-flow {
-        z-index: 1; /* Above lines */
+      z-index: 1;
     }
-
   </style>
-<script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.1.0/",
-    "react": "https://esm.sh/react@^19.1.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.7.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs",
-    "html-to-image": "https://esm.sh/html-to-image@^1.11.11"
+
+  <!-- Import map for ESM modules -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react/": "https://esm.sh/react@^19.1.0/",
+      "react": "https://esm.sh/react@^19.1.0",
+      "@google/genai": "https://esm.sh/@google/genai@^1.7.0",
+      "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+      "xlsx": "https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs",
+      "html-to-image": "https://esm.sh/html-to-image@^1.11.11"
+    }
   }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
+  </script>
+
+  <!-- Your project's CSS (optional, used in Vite dev/prod builds) -->
+  <link rel="stylesheet" href="/index.css" />
 </head>
 <body class="bg-slate-100">
   <div id="root" class="h-full"></div>
