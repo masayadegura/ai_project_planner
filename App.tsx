@@ -27,20 +27,6 @@ import ApiKeyModal from './components/ApiKeyModal';
 import AuthModal from './components/AuthModal';
 import ProjectListModal from './components/ProjectListModal';
 
-const [isAdmin, setIsAdmin] = useState(false);
-const [adminOpen, setAdminOpen] = useState(false);
-
-useEffect(() => {
-  const checkAdmin = async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (data?.user?.user_metadata?.admin === true) {
-      setIsAdmin(true);
-    }
-  };
-  checkAdmin();
-}, []);
-
-
 const defaultExtendedDetails: ExtendedTaskDetails = {
   subSteps: [],
   resources: '',
@@ -139,6 +125,23 @@ const App: React.FC = () => {
   const [redoHistory, setRedoHistory] = useState<ProjectTask[][]>([]);
   
   const [customReportDeck, setCustomReportDeck] = useState<SlideDeck | null>(null);
+
+　const [isAdmin, setIsAdmin] = useState(false);
+　const [adminOpen, setAdminOpen] = useState(false);
+
+useEffect(() => {
+  const checkAdmin = async () => {
+    const { data } = await supabase.auth.getUser();
+    if (data?.user?.user_metadata?.admin === true) {
+      setIsAdmin(true);
+    }
+  };
+  checkAdmin();
+}, []);
+
+
+
+  
 
   // 認証状態の監視
   useEffect(() => {
@@ -608,37 +611,64 @@ switch (currentView) {
     
   };
 
-  return (
-    <div className="h-full w-full">
-      {renderContent()}
-      {isAddTaskModalOpen && (
-        <AddTaskModal
-          onClose={() => setIsAddTaskModalOpen(false)}
-          onSubmit={handleAddTaskFromModal}
-        />
-      )}
-      {isProjectListOpen && (
-        <ProjectListModal
-          isOpen={isProjectListOpen}
-          onClose={() => setIsProjectListOpen(false)}
-          onSelectProject={handleSelectProject}
-          onCreateNew={handleCreateNewProject}
-        />
-      )}
-      {customReportDeck && (
-         <SlideEditorView
-            tasks={tasks}
-            initialDeck={customReportDeck}
-            onSave={(deck) => setCustomReportDeck(deck)}
-            onClose={() => setCustomReportDeck(null)}
-            projectGoal={projectGoal}
-            targetDate={targetDate}
-            reportScope="project"
-            generateUniqueId={generateUniqueId}
-         />
-      )}
-    </div>
-  );
-};
+return (
+  <div className="h-full w-full relative">
+    {/* ✅ 管理者用トグルボタン */}
+    {isAdmin && (
+      <button
+        onClick={() => setAdminOpen(!adminOpen)}
+        style={{
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          padding: '8px 12px',
+          backgroundColor: '#007bff',
+          color: 'white',
+          border: 'none',
+          borderRadius: 4,
+          cursor: 'pointer',
+          zIndex: 1000,
+        }}
+      >
+        {adminOpen ? '管理画面を閉じる' : '管理画面を開く'}
+      </button>
+    )}
+
+    {/* ✅ 管理画面表示 */}
+    {adminOpen && <AdminDashboard />}
+
+    {/* ✅ 既存の通常UI */}
+    {renderContent()}
+
+    {isAddTaskModalOpen && (
+      <AddTaskModal
+        onClose={() => setIsAddTaskModalOpen(false)}
+        onSubmit={handleAddTaskFromModal}
+      />
+    )}
+
+    {isProjectListOpen && (
+      <ProjectListModal
+        isOpen={isProjectListOpen}
+        onClose={() => setIsProjectListOpen(false)}
+        onSelectProject={handleSelectProject}
+        onCreateNew={handleCreateNewProject}
+      />
+    )}
+
+    {customReportDeck && (
+      <SlideEditorView
+        tasks={tasks}
+        initialDeck={customReportDeck}
+        onSave={(deck) => setCustomReportDeck(deck)}
+        onClose={() => setCustomReportDeck(null)}
+        projectGoal={projectGoal}
+        targetDate={targetDate}
+        reportScope="project"
+        generateUniqueId={generateUniqueId}
+      />
+    )}
+  </div>
+);
 
 export default App;
