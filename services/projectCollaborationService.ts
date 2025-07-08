@@ -44,9 +44,10 @@ export class ProjectCollaborationService {
       .from('project_members')
       .select(`
         *,
-        user:auth.users(email)
+        users!user_id(email)
       `)
       .eq('project_id', projectId)
+      .eq('status', 'active')
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -62,8 +63,38 @@ export class ProjectCollaborationService {
       invitedAt: member.invited_at,
       joinedAt: member.joined_at,
       status: member.status,
-      userEmail: member.user?.email,
-      userName: member.user?.email?.split('@')[0] || 'Unknown',
+      userEmail: member.users?.email,
+      userName: member.users?.email?.split('@')[0] || 'Unknown',
+    }));
+  }
+
+  // プロジェクトの招待一覧を取得
+  static async getProjectInvitations(projectId: string): Promise<ProjectInvitation[]> {
+    const { data, error } = await supabase
+      .from('project_invitations')
+      .select(`
+        *,
+        inviter:users!invited_by(email)
+      `)
+      .eq('project_id', projectId)
+      .eq('status', 'pending')
+      .gt('expires_at', new Date().toISOString())
+      .order('invited_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`招待一覧の取得に失敗しました: ${error.message}`);
+    }
+
+    return data.map(invitation => ({
+      id: invitation.id,
+      projectId: invitation.project_id,
+      email: invitation.email,
+      role: invitation.role,
+      invitedBy: invitation.invited_by,
+      invitedAt: invitation.invited_at,
+      expiresAt: invitation.expires_at,
+      status: invitation.status,
+      inviterName: invitation.inviter?.email?.split('@')[0] || 'Unknown',
     }));
   }
 
@@ -92,13 +123,16 @@ export class ProjectCollaborationService {
     }
 
     // 既にメンバーかチェック
-    const { data: existingMember } = await supabase
+    const { data: existingMembers } = await supabase
       .from('project_members')
-      .select('user_id, auth.users(email)')
+      .select(`
+        user_id,
+        users!user_id(email)
+      `)
       .eq('project_id', projectId)
       .eq('status', 'active');
 
-    const memberEmails = existingMember?.map(m => m.user?.email) || [];
+    const memberEmails = existingMembers?.map(m => m.users?.email) || [];
     if (memberEmails.includes(email)) {
       throw new Error('このユーザーは既にプロジェクトのメンバーです');
     }
@@ -155,14 +189,33 @@ export class ProjectCollaborationService {
       throw new Error('招待の有効期限が切れています');
     }
 
-    // トランザクション処理
-    const { error } = await supabase.rpc('accept_project_invitation', {
-      invitation_id: invitationId,
-      user_id: user.id,
-    });
+    // メンバーテーブルに追加
+    const { error: memberError } = await supabase
+      .from('project_members')
+      .insert({
+        project_id: invitation.project_id,
+        user_id: user.id,
+        role: invitation.role,
+        invited_by: invitation.invited_by,
+        status: 'active',
+        joined_at: new Date().toISOString(),
+      });
 
-    if (error) {
-      throw new Error(`招待の受諾に失敗しました: ${error.message}`);
+    if (memberError) {
+      throw new Error(`メンバー追加に失敗しました: ${memberError.message}`);
+    }
+
+    // 招待ステータスを更新
+    const { error: updateError } = await supabase
+      .from('project_invitations')
+      .update({ 
+        status: 'accepted',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', invitationId);
+
+    if (updateError) {
+      throw new Error(`招待ステータスの更新に失敗しました: ${updateError.message}`);
     }
   }
 
@@ -177,7 +230,7 @@ export class ProjectCollaborationService {
       .from('project_invitations')
       .select(`
         *,
-        inviter:auth.users!invited_by(email),
+        inviter:users!invited_by(email),
         project:projects(title)
       `)
       .eq('email', user.email)
@@ -258,7 +311,7 @@ export class ProjectCollaborationService {
       .from('project_activity_log')
       .select(`
         *,
-        user:auth.users(email)
+        user:users!user_id(email)
       `)
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
@@ -335,44 +388,45 @@ export class ProjectCollaborationService {
     if (error) return null;
     return data.role;
   }
+
+  // 管理者かどうかをチェック
+  static async isAdmin(): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    
+    // 管理者のメールアドレスをチェック
+    return user.email === 'administrator@example.com';
+  }
+
+  // 全プロジェクトを取得（管理者用）
+  static async getAllProjects(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        user:users!user_id(email),
+        member_count:project_members(count)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`プロジェクト一覧の取得に失敗しました: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  // 全ユーザーを取得（管理者用）
+  static async getAllUsers(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`ユーザー一覧の取得に失敗しました: ${error.message}`);
+    }
+
+    return data;
+  }
 }
-
-// Supabase関数（招待受諾用）
-// この関数はSupabaseのSQL Editorで実行する必要があります
-/*
-CREATE OR REPLACE FUNCTION accept_project_invitation(
-  invitation_id uuid,
-  user_id uuid
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  invitation_record record;
-BEGIN
-  -- 招待情報を取得
-  SELECT * INTO invitation_record
-  FROM project_invitations
-  WHERE id = invitation_id AND status = 'pending';
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Invalid invitation';
-  END IF;
-
-  -- 期限チェック
-  IF invitation_record.expires_at < now() THEN
-    RAISE EXCEPTION 'Invitation expired';
-  END IF;
-
-  -- メンバーテーブルに追加
-  INSERT INTO project_members (project_id, user_id, role, invited_by, status, joined_at)
-  VALUES (invitation_record.project_id, user_id, invitation_record.role, invitation_record.invited_by, 'active', now());
-
-  -- 招待ステータスを更新
-  UPDATE project_invitations
-  SET status = 'accepted', updated_at = now()
-  WHERE id = invitation_id;
-END;
-$$;
-*/

@@ -39,7 +39,7 @@ const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
     try {
       const [membersData, invitationsData] = await Promise.all([
         ProjectCollaborationService.getProjectMembers(projectId),
-        canManageMembers ? getProjectInvitations() : Promise.resolve([]),
+        canManageMembers ? ProjectCollaborationService.getProjectInvitations(projectId) : Promise.resolve([]),
       ]);
       setMembers(membersData);
       setInvitations(invitationsData);
@@ -48,12 +48,6 @@ const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const getProjectInvitations = async (): Promise<ProjectInvitation[]> => {
-    // 簡易実装：プロジェクトの招待一覧を取得
-    // 実際の実装では専用のAPIを作成することを推奨
-    return [];
   };
 
   const handleInvite = async () => {
@@ -166,6 +160,32 @@ const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                   {isInviting ? <LoadingSpinner size="sm" color="border-white" /> : <PlusIcon className="w-4 h-4" />}
                   招待
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* 招待一覧 */}
+          {invitations.length > 0 && (
+            <div className="mb-6">
+              <h4 className="font-semibold text-slate-800 mb-3">送信済み招待</h4>
+              <div className="space-y-2">
+                {invitations.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200"
+                  >
+                    <div>
+                      <p className="font-medium text-slate-800">{invitation.email}</p>
+                      <p className="text-sm text-slate-500">
+                        {getRoleLabel(invitation.role)} として招待中 | 
+                        期限: {new Date(invitation.expiresAt).toLocaleDateString('ja-JP')}
+                      </p>
+                    </div>
+                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                      招待中
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}

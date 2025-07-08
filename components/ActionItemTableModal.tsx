@@ -97,6 +97,10 @@ const ActionItemTableModal: React.FC<ActionItemTableModalProps> = ({ items, task
     const isEditing = editingField?.itemId === itemId && editingField?.field === field;
     const [tempValue, setTempValue] = useState(value);
 
+    useEffect(() => {
+      setTempValue(value);
+    }, [value]);
+
     const handleSave = () => {
       handleFieldUpdate(subStepId, actionItemId, field, tempValue);
     };
@@ -129,7 +133,6 @@ const ActionItemTableModal: React.FC<ActionItemTableModalProps> = ({ items, task
       <div
         onClick={() => {
           setEditingField({ itemId, field });
-          setTempValue(value);
         }}
         className="cursor-pointer hover:bg-slate-100 px-1 py-0.5 rounded min-h-[1.5rem] flex items-center"
         title="クリックして編集"

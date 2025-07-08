@@ -224,7 +224,7 @@ const DocumentCenterModal: React.FC<DocumentCenterModalProps> = ({
         if (link) {
             const a = document.createElement('a');
             a.href = link;
-            a.download = fileName;
+            a.download = fileName || source.name || 'download';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
