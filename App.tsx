@@ -524,71 +524,73 @@ const App: React.FC = () => {
       );
     }
 
-    switch (currentView) {
-      case ViewState.PROJECT_FLOW:
-        return (
-          <ProjectFlowDisplay
-            tasks={tasks}
-            projectGoal={projectGoal}
-            targetDate={targetDate}
-            onSelectTask={handleSelectTask}
-            onUpdateTaskExtendedDetails={() => {}} // This is handled by opening the modal
-            onUpdateTaskPosition={handleUpdateTaskPosition}
-            onStartNewProject={handleStartNewProject}
-            onExportProject={handleExportProject}
-            onAddTask={() => setIsAddTaskModalOpen(true)}
-            onRemoveTask={handleRemoveTask}
-        )
-    }
-  }
+switch (currentView) {
+  case ViewState.PROJECT_FLOW:
+    return (
+      <ProjectFlowDisplay
+        tasks={tasks}
+        projectGoal={projectGoal}
+        targetDate={targetDate}
+        onSelectTask={handleSelectTask}
+        onUpdateTaskExtendedDetails={() => {}} // This is handled by opening the modal
+        onUpdateTaskPosition={handleUpdateTaskPosition}
+        onStartNewProject={handleStartNewProject}
+        onExportProject={handleExportProject}
+        onAddTask={() => setIsAddTaskModalOpen(true)}
+        onRemoveTask={handleRemoveTask}
+        onUpdateTaskStatus={handleUpdateTaskStatus}
+        onImportSingleTask={() => {}} // Placeholder for now
+        onAutoLayout={() => setTasksWithHistory(prev => autoLayoutTasks([...prev]))}
+        onUndo={handleUndo}
+        canUndo={history.length > 0}
+        onRedo={handleRedo}
+        canRedo={redoHistory.length > 0}
+        generateUniqueId={generateUniqueId}
+        onUpdateTaskConnections={handleUpdateTaskConnections}
+        ganttData={ganttData}
+        setGanttData={setGanttData}
+        onCustomReportGenerated={handleCustomReportGenerated}
+        onClearApiKey={handleClearApiKey}
+        onOpenProjectList={() => setIsProjectListOpen(true)}
+        onLogout={handleLogout}
+        currentProjectId={currentProjectId}
+        onSaveProject={saveCurrentProject}
+      />
+    );
+
+  case ViewState.TASK_DETAIL:
+    return (
+      selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          onClose={handleCloseTaskDetail}
+          onUpdateTaskCoreInfo={handleUpdateTaskCoreInfo}
+          onUpdateExtendedDetails={handleUpdateTaskExtendedDetails}
+          generateUniqueId={generateUniqueId}
+          projectGoal={projectGoal}
+          targetDate={targetDate}
+        />
+      )
+    );
+
+  case ViewState.INPUT_FORM:
+  default:
+    return (
+      <ProjectInputForm
+        onSubmit={handleSubmit}
+        isLoading={isLoadingPlan}
+        onImportProject={handleImportProject}
+        onLoadTemplate={handleLoadTemplate}
+        initialGoal={projectGoal}
+        initialDate={targetDate}
+        onOpenProjectList={() => setIsProjectListOpen(true)}
+        onLogout={handleLogout}
+        user={user}
+      />
+    );
 }
-            onUpdateTaskStatus={handleUpdateTaskStatus}
-            onImportSingleTask={() => {}} // Placeholder for now
-            onAutoLayout={() => setTasksWithHistory(prev => autoLayoutTasks([...prev]))}
-            onUndo={handleUndo}
-            canUndo={history.length > 0}
-            onRedo={handleRedo}
-            canRedo={redoHistory.length > 0}
-            generateUniqueId={generateUniqueId}
-            onUpdateTaskConnections={handleUpdateTaskConnections}
-            ganttData={ganttData}
-            setGanttData={setGanttData}
-            onCustomReportGenerated={handleCustomReportGenerated}
-            onClearApiKey={handleClearApiKey}
-            onOpenProjectList={() => setIsProjectListOpen(true)}
-            onLogout={handleLogout}
-            currentProjectId={currentProjectId}
-            onSaveProject={saveCurrentProject}
-          />
-        );
-      case ViewState.TASK_DETAIL:
-        return (
-            selectedTask && <TaskDetailModal
-              task={selectedTask}
-              onClose={handleCloseTaskDetail}
-              onUpdateTaskCoreInfo={handleUpdateTaskCoreInfo}
-              onUpdateExtendedDetails={handleUpdateTaskExtendedDetails}
-              generateUniqueId={generateUniqueId}
-              projectGoal={projectGoal}
-              targetDate={targetDate}
-            />
-        );
-      case ViewState.INPUT_FORM:
-      default:
-        return (
-          <ProjectInputForm
-            onSubmit={handleSubmit}
-            isLoading={isLoadingPlan}
-            onImportProject={handleImportProject}
-            onLoadTemplate={handleLoadTemplate}
-            initialGoal={projectGoal}
-            initialDate={targetDate}
-            onOpenProjectList={() => setIsProjectListOpen(true)}
-            onLogout={handleLogout}
-            user={user}
-          />
-        );
-    }
+
+    
   };
 
   return (
