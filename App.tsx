@@ -12,6 +12,7 @@ import {
   Decision,
   SlideDeck
 } from './types';
+import AdminDashboard from './components/AdminDashboard'; // AdminDashboard を使う
 import { generateProjectPlan, initializeGemini } from './services/geminiService';
 import { ProjectService, ProjectData } from './services/projectService';
 import { supabase } from './lib/supabase';
@@ -25,6 +26,20 @@ import SlideEditorView from './components/SlideEditorView';
 import ApiKeyModal from './components/ApiKeyModal';
 import AuthModal from './components/AuthModal';
 import ProjectListModal from './components/ProjectListModal';
+
+const [isAdmin, setIsAdmin] = useState(false);
+const [adminOpen, setAdminOpen] = useState(false);
+
+useEffect(() => {
+  const checkAdmin = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (data?.user?.user_metadata?.admin === true) {
+      setIsAdmin(true);
+    }
+  };
+  checkAdmin();
+}, []);
+
 
 const defaultExtendedDetails: ExtendedTaskDetails = {
   subSteps: [],
