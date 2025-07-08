@@ -23,18 +23,36 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
 
     try {
       if (isLogin) {
+        // 通常のログイン処理
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({
+        // signUp 側の処理を fetch 経由に変更
+        const { error } = await fetch('/api/create-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email,
+            password,
+            providerId: `email:${email}`, // 任意の provider_id
+          }),
+        }).then(res => res.json());
+
+        if (error) throw new Error(error);
+
+        // 作成後、自動ログイン
+        const { error: loginError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (error) throw error;
+        if (loginError) throw loginError;
       }
+
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : '認証に失敗しました');
